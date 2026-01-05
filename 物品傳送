@@ -1,0 +1,212 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- 1. UI 建立
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.Name = "TeleportTool_Final_Pro"
+screenGui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 260, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -130, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.ClipsDescendants = true
+Instance.new("UICorner", mainFrame)
+
+-- 標題列
+local titleLabel = Instance.new("TextLabel", mainFrame)
+titleLabel.Size = UDim2.new(1, -40, 0, 40)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.Text = "高級控制台 (Part/Model)"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Font = Enum.Font.GothamBold
+
+-- 內容容器 (用於最小化隱藏)
+local contentFrame = Instance.new("Frame", mainFrame)
+contentFrame.Size = UDim2.new(1, 0, 1, -40)
+contentFrame.Position = UDim2.new(0, 0, 0, 40)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Name = "Content"
+
+-- [組件] 輸入框 (不自動清空內容)
+local inputBox = Instance.new("TextBox", contentFrame)
+inputBox.Size = UDim2.new(0.9, 0, 0, 40)
+inputBox.Position = UDim2.new(0.05, 0, 0, 0)
+inputBox.PlaceholderText = "輸入名稱 (用逗號隔開)"
+inputBox.Text = ""
+inputBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+inputBox.TextColor3 = Color3.new(1, 1, 1)
+inputBox.ClearTextOnFocus = false
+
+-- [組件] 模式切換按鈕
+local selectMode = "Part"
+local modeBtn = Instance.new("TextButton", contentFrame)
+modeBtn.Size = UDim2.new(0.9, 0, 0, 30)
+modeBtn.Position = UDim2.new(0.05, 0, 0.15, 5)
+modeBtn.Text = "模式: PART (單一零件)"
+modeBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+modeBtn.TextColor3 = Color3.new(1, 1, 1)
+
+-- [組件] 錄入模式開關
+local isRecording = false
+local toggleRecordBtn = Instance.new("TextButton", contentFrame)
+toggleRecordBtn.Size = UDim2.new(0.9, 0, 0, 30)
+toggleRecordBtn.Position = UDim2.new(0.05, 0, 0.28, 5)
+toggleRecordBtn.Text = "錄入模式: 關閉"
+toggleRecordBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+toggleRecordBtn.TextColor3 = Color3.new(1, 1, 1)
+
+-- [組件] 召喚至面前
+local actionBtn = Instance.new("TextButton", contentFrame)
+actionBtn.Size = UDim2.new(0.9, 0, 0, 40)
+actionBtn.Position = UDim2.new(0.05, 0, 0.45, 5)
+actionBtn.Text = "召喚至面前"
+actionBtn.BackgroundColor3 = Color3.fromRGB(0, 160, 100)
+actionBtn.TextColor3 = Color3.new(1, 1, 1)
+actionBtn.Font = Enum.Font.GothamBold
+
+-- [組件] 紀錄位置
+local setPointBtn = Instance.new("TextButton", contentFrame)
+setPointBtn.Size = UDim2.new(0.425, 0, 0, 35)
+setPointBtn.Position = UDim2.new(0.05, 0, 0.65, 5)
+setPointBtn.Text = "紀錄位置"
+setPointBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 150)
+setPointBtn.TextColor3 = Color3.new(1, 1, 1)
+
+-- [組件] 送往紀錄點
+local tpToPointBtn = Instance.new("TextButton", contentFrame)
+tpToPointBtn.Size = UDim2.new(0.425, 0, 0, 35)
+tpToPointBtn.Position = UDim2.new(0.525, 0, 0.65, 5)
+tpToPointBtn.Text = "送往紀錄點"
+tpToPointBtn.BackgroundColor3 = Color3.fromRGB(150, 80, 150)
+tpToPointBtn.TextColor3 = Color3.new(1, 1, 1)
+
+-- 變數暫存
+local savedCFrame = nil
+
+-- 2. 最小化功能
+local minBtn = Instance.new("TextButton", mainFrame)
+minBtn.Size = UDim2.new(0, 30, 0, 30)
+minBtn.Position = UDim2.new(1, -35, 0, 5)
+minBtn.Text = "－"
+minBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+minBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", minBtn)
+
+local isMinimized = false
+minBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	if isMinimized then
+		contentFrame.Visible = false
+		mainFrame:TweenSize(UDim2.new(0, 260, 0, 40), "Out", "Quart", 0.2, true)
+		minBtn.Text = "＋"
+	else
+		mainFrame:TweenSize(UDim2.new(0, 260, 0, 320), "Out", "Quart", 0.2, true, function()
+			contentFrame.Visible = true
+		end)
+		minBtn.Text = "－"
+	end
+end)
+
+-- 3. 模式切換邏輯
+modeBtn.MouseButton1Click:Connect(function()
+	if selectMode == "Part" then
+		selectMode = "Model"
+		modeBtn.Text = "模式: MODEL (整組模型)"
+		modeBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+	else
+		selectMode = "Part"
+		modeBtn.Text = "模式: PART (單一零件)"
+		modeBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	end
+end)
+
+-- 4. 點擊錄入邏輯 (智慧過濾)
+mouse.Button1Down:Connect(function()
+	if not isRecording then return end
+	local target = mouse.Target
+	if not target or target:IsDescendantOf(player.Character) then return end
+
+	local nameToAdd = ""
+	if selectMode == "Model" then
+		local model = target:FindFirstAncestorOfClass("Model")
+		if model then nameToAdd = model.Name end
+	else
+		nameToAdd = target.Name
+	end
+
+	if nameToAdd ~= "" then
+		local currentText = inputBox.Text
+		if currentText == "" then 
+			inputBox.Text = nameToAdd
+		elseif not string.find(currentText, nameToAdd) then
+			inputBox.Text = currentText .. "," .. nameToAdd
+		end
+	end
+end)
+
+-- 5. 核心瞬移函數 (不破壞錨定結構)
+local function universalTeleport(targetCFrame)
+	local rawText = inputBox.Text
+	if rawText == "" or not targetCFrame then return end
+	
+	local targetNames = {}
+	for _, n in ipairs(string.split(rawText, ",")) do
+		local clean = string.gsub(n, "^%s*(.-)%s*$", "%1")
+		if clean ~= "" then targetNames[clean] = true end
+	end
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if targetNames[obj.Name] then
+			if selectMode == "Part" and obj:IsA("BasePart") then
+				obj.CFrame = targetCFrame
+				if not obj.Anchored then
+					obj.Velocity = Vector3.new(0,0,0)
+					obj.RotVelocity = Vector3.new(0,0,0)
+				end
+			elseif selectMode == "Model" and obj:IsA("Model") then
+				obj:PivotTo(targetCFrame)
+				for _, p in ipairs(obj:GetDescendants()) do
+					if p:IsA("BasePart") and not p.Anchored then
+						p.Velocity = Vector3.new(0,0,0)
+					end
+				end
+			end
+		end
+	end
+end
+
+-- 6. 按鈕功能綁定
+actionBtn.MouseButton1Click:Connect(function()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then universalTeleport(root.CFrame * CFrame.new(0, 0, -5)) end
+end)
+
+setPointBtn.MouseButton1Click:Connect(function()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		savedCFrame = root.CFrame * CFrame.new(0, 0, -5)
+		setPointBtn.Text = "位置已存取"
+		task.wait(0.5)
+		setPointBtn.Text = "紀錄位置"
+	end
+end)
+
+tpToPointBtn.MouseButton1Click:Connect(function()
+	if savedCFrame then universalTeleport(savedCFrame) end
+end)
+
+toggleRecordBtn.MouseButton1Click:Connect(function()
+	isRecording = not isRecording
+	toggleRecordBtn.Text = isRecording and "錄入模式: 開啟" or "錄入模式: 關閉"
+	toggleRecordBtn.BackgroundColor3 = isRecording and Color3.fromRGB(200, 150, 0) or Color3.fromRGB(100, 100, 100)
+end)
