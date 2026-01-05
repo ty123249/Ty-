@@ -19,9 +19,9 @@ mainFrame.Draggable = true
 mainFrame.ClipsDescendants = true
 Instance.new("UICorner", mainFrame)
 
--- 標題列
+-- 標題列文字
 local titleLabel = Instance.new("TextLabel", mainFrame)
-titleLabel.Size = UDim2.new(1, -40, 0, 40)
+titleLabel.Size = UDim2.new(1, -80, 0, 40)
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.Text = "高級控制台 (Part/Model)"
 titleLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -36,7 +36,55 @@ contentFrame.Position = UDim2.new(0, 0, 0, 40)
 contentFrame.BackgroundTransparency = 1
 contentFrame.Name = "Content"
 
--- [組件] 輸入框 (不自動清空內容)
+-- ---------------------------------------------------------
+-- [新增] 關閉按鈕 (X)
+-- ---------------------------------------------------------
+local closeBtn = Instance.new("TextButton", mainFrame)
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 5) -- 放在最右邊
+closeBtn.Text = "×"
+closeBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50) -- 紅色背景
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 18
+Instance.new("UICorner", closeBtn)
+
+closeBtn.MouseButton1Click:Connect(function()
+	screenGui:Destroy() -- 直接刪除整個 UI
+end)
+
+-- ---------------------------------------------------------
+-- [調整] 最小化功能 (－) 往左移動一格
+-- ---------------------------------------------------------
+local minBtn = Instance.new("TextButton", mainFrame)
+minBtn.Size = UDim2.new(0, 30, 0, 30)
+minBtn.Position = UDim2.new(1, -70, 0, 5) -- 放在關閉按鈕左邊
+minBtn.Text = "－"
+minBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+minBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", minBtn)
+
+local isMinimized = false
+minBtn.MouseButton1Click:Connect(function()
+	isMinimized = not isMinimized
+	if isMinimized then
+		contentFrame.Visible = false
+		mainFrame:TweenSize(UDim2.new(0, 260, 0, 40), "Out", "Quart", 0.2, true)
+		minBtn.Text = "＋"
+	else
+		mainFrame:TweenSize(UDim2.new(0, 260, 0, 320), "Out", "Quart", 0.2, true, function()
+			contentFrame.Visible = true
+		end)
+		minBtn.Text = "－"
+	end
+end)
+
+-- ---------------------------------------------------------
+-- [其餘原功能保持不變]
+-- ---------------------------------------------------------
+
+-- [組件] 輸入框
 local inputBox = Instance.new("TextBox", contentFrame)
 inputBox.Size = UDim2.new(0.9, 0, 0, 40)
 inputBox.Position = UDim2.new(0.05, 0, 0, 0)
@@ -92,31 +140,6 @@ tpToPointBtn.TextColor3 = Color3.new(1, 1, 1)
 -- 變數暫存
 local savedCFrame = nil
 
--- 2. 最小化功能
-local minBtn = Instance.new("TextButton", mainFrame)
-minBtn.Size = UDim2.new(0, 30, 0, 30)
-minBtn.Position = UDim2.new(1, -35, 0, 5)
-minBtn.Text = "－"
-minBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-minBtn.TextColor3 = Color3.new(1, 1, 1)
-minBtn.Font = Enum.Font.GothamBold
-Instance.new("UICorner", minBtn)
-
-local isMinimized = false
-minBtn.MouseButton1Click:Connect(function()
-	isMinimized = not isMinimized
-	if isMinimized then
-		contentFrame.Visible = false
-		mainFrame:TweenSize(UDim2.new(0, 260, 0, 40), "Out", "Quart", 0.2, true)
-		minBtn.Text = "＋"
-	else
-		mainFrame:TweenSize(UDim2.new(0, 260, 0, 320), "Out", "Quart", 0.2, true, function()
-			contentFrame.Visible = true
-		end)
-		minBtn.Text = "－"
-	end
-end)
-
 -- 3. 模式切換邏輯
 modeBtn.MouseButton1Click:Connect(function()
 	if selectMode == "Part" then
@@ -130,7 +153,7 @@ modeBtn.MouseButton1Click:Connect(function()
 	end
 end)
 
--- 4. 點擊錄入邏輯 (智慧過濾)
+-- 4. 點擊錄入邏輯
 mouse.Button1Down:Connect(function()
 	if not isRecording then return end
 	local target = mouse.Target
@@ -154,7 +177,7 @@ mouse.Button1Down:Connect(function()
 	end
 end)
 
--- 5. 核心瞬移函數 (不破壞錨定結構)
+-- 5. 核心瞬移函數
 local function universalTeleport(targetCFrame)
 	local rawText = inputBox.Text
 	if rawText == "" or not targetCFrame then return end
