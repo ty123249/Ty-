@@ -18,7 +18,7 @@ screenGui.Name = "Harvester_V32_8_Stable"
 screenGui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 210, 0, 310)
+mainFrame.Size = UDim2.new(0, 210, 0, 260) -- 縮小了總高度，因為少了一個按鈕
 mainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 mainFrame.Active = true
@@ -58,7 +58,7 @@ Instance.new("UICorner", closeBtn)
 closeBtn.MouseButton1Click:Connect(function() uiActive = false; screenGui:Destroy() end)
 minBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    ts:Create(mainFrame, TweenInfo.new(0.3), {Size = isMinimized and UDim2.new(0, 210, 0, 35) or UDim2.new(0, 210, 0, 310)}):Play()
+    ts:Create(mainFrame, TweenInfo.new(0.3), {Size = isMinimized and UDim2.new(0, 210, 0, 35) or UDim2.new(0, 210, 0, 260)}):Play()
     contentFrame.Visible = not isMinimized
     minBtn.Text = isMinimized and "+" or "-"
 end)
@@ -69,11 +69,15 @@ local function createBtn(text, pos, color)
 end
 
 local knifeBtn = createBtn("自動砍殺 (Light)：OFF", UDim2.new(0.05, 0, 0.05, 0), Color3.fromRGB(60, 30, 30))
-local gunBtn = createBtn("自動連發 (槍)：OFF", UDim2.new(0.05, 0, 0.2, 0), Color3.fromRGB(30, 40, 60))
-local espBtn = createBtn("全景 ESP：ON", UDim2.new(0.05, 0, 0.35, 0), Color3.fromRGB(30, 60, 40))
-local skinBtn = createBtn("快速剝皮 (刀)", UDim2.new(0.05, 0, 0.5, 0), Color3.fromRGB(80, 40, 90))
+local gunBtn = createBtn("自動連發 (槍)：OFF", UDim2.new(0.05, 0, 0.22, 0), Color3.fromRGB(30, 40, 60))
+local espBtn = createBtn("全景 ESP：ON", UDim2.new(0.05, 0, 0.39, 0), Color3.fromRGB(30, 60, 40))
 
-local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.65, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = "35"; rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
+-- 範圍設定區
+local rangeLabel = Instance.new("TextLabel", contentFrame)
+rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.6, 0); rangeLabel.Text = "攻擊範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.6, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = "35"; rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
+
 local statusLabel = Instance.new("TextLabel", contentFrame); statusLabel.Size = UDim2.new(1, 0, 0, 30); statusLabel.Position = UDim2.new(0, 0, 0.8, 0); statusLabel.Text = "穩定版就緒"; statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7); statusLabel.BackgroundTransparency = 1
 
 -- --- 2. ESP 邏輯 ---
@@ -105,7 +109,6 @@ task.spawn(function()
         local anims = workspace:FindFirstChild("Living") and workspace.Living:FindFirstChild("Animals")
         
         if hrp and anims then
-            -- 刀的邏輯：改回 LightAttack2
             if autoKnife then
                 local knife = char:FindFirstChild("HuntingKnife") or lp.Backpack:FindFirstChild("HuntingKnife")
                 local kRemote = knife and knife:FindFirstChild("Scripts") and knife.Scripts.System:FindFirstChild("Hit")
@@ -125,7 +128,6 @@ task.spawn(function()
                 end
             end
             
-            -- 槍的邏輯：保持暴力 Table
             if autoGun then
                 local gun = char:FindFirstChild("CrocodileHunter") or char:FindFirstChild("NightFall")
                 local gRemote = gun and gun:FindFirstChild("Scripts") and gun.Scripts.System:FindFirstChild("Hit")
@@ -159,17 +161,3 @@ knifeBtn.MouseButton1Click:Connect(function() autoKnife = not autoKnife; knifeBt
 gunBtn.MouseButton1Click:Connect(function() autoGun = not autoGun; gunBtn.Text = autoGun and "自動連發：ON" or "自動連發：OFF"; gunBtn.BackgroundColor3 = autoGun and Color3.fromRGB(50, 80, 150) or Color3.fromRGB(30, 40, 60) end)
 espBtn.MouseButton1Click:Connect(function() espEnabled = not espEnabled; espBtn.Text = espEnabled and "全景 ESP：ON" or "全景 ESP：OFF" end)
 rangeInput.FocusLost:Connect(function() harvestRange = tonumber(rangeInput.Text) or 35 end)
-
-skinBtn.MouseButton1Click:Connect(function()
-    local knife = lp.Character:FindFirstChild("HuntingKnife") or lp.Backpack:FindFirstChild("HuntingKnife")
-    local sRemote = knife and knife.Scripts.System:FindFirstChild("Skin")
-    if sRemote then
-        for _, a in pairs(workspace.Living.Animals:GetChildren()) do
-            local torso = a:FindFirstChild("Model") and a.Model:FindFirstChild("Torso") and a.Model.Torso:FindFirstChild("Part")
-            if torso and (torso.Position - lp.Character.HumanoidRootPart.Position).Magnitude <= harvestRange then
-                statusLabel.Text = "✨ 剝皮中..."; for i = 1, 10 do sRemote:FireServer(a, torso, torso.CFrame); task.wait(0.05) end
-                statusLabel.Text = "✅ DONE"; return
-            end
-        end
-    end
-end)
