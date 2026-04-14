@@ -1,0 +1,498 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "癡情 監獄升降機衝突腳本",
+   LoadingTitle = "監獄升降機衝突 腳本",
+   LoadingSubtitle = "by 癡情訣愛",
+   ConfigurationSaving = { Enabled = false },
+   KeySystem = false})
+
+local Tab = Window:CreateTab("自動控制", 4483362458)
+
+local Section = Tab:CreateSection("訓練 & 重生設定")
+
+local trainAmount = 6
+
+_G.AutoTrain = false
+Tab:CreateToggle({
+   Name = "自動訓練",
+   CurrentValue = false,
+   Flag = "AutoTrainToggle",
+   Callback = function(Value)
+      _G.AutoTrain = Value
+      Rayfield:Notify({
+         Title = "自動訓練",
+         Content = Value and "已開啟！每次發送 " .. trainAmount or "已關閉。",
+         Duration = 3,
+         Image = 4483362458})
+   end,})
+
+Tab:CreateInput({
+   Name = "訓練每次數值",
+   PlaceholderText = "輸入數字",
+   RemoveTextAfterFocusLost = false,
+   CurrentValue = tostring(trainAmount),
+   Callback = function(Text)
+      local num = tonumber(Text)
+      if num and num > 0 then
+         trainAmount = num
+         Rayfield:Notify({
+            Title = "數值更新",
+            Content = "訓練每次改成: " .. trainAmount,
+            Duration = 4})
+      else
+         Rayfield:Notify({
+            Title = "無效輸入",
+            Content = "請輸入正確數值！維持原值 " .. trainAmount,
+            Duration = 4})
+      end
+   end,})
+
+_G.AutoRebirth = false
+Tab:CreateToggle({
+   Name = "自動重生",
+   CurrentValue = false,
+   Flag = "AutoRebirthToggle",
+   Callback = function(Value)
+      _G.AutoRebirth = Value
+      Rayfield:Notify({
+         Title = "自動重生",
+         Content = Value and "已開啟！" or "已關閉。",
+         Duration = 3})
+   end,})
+
+Tab:CreateButton({
+   Name = "手動訓練一次 (用目前設定的數值)",
+   Callback = function()
+      pcall(function()
+         game:GetService("ReplicatedStorage")["E&F"].Train.TrainOnceRE:FireServer(trainAmount)
+      end)
+      Rayfield:Notify({Title = "手動觸發", Content = "已發送一次訓練 (" .. trainAmount .. ")", Duration = 2})
+   end,})
+
+Tab:CreateButton({
+   Name = "手動重生一次",
+   Callback = function()
+      pcall(function()
+         game:GetService("ReplicatedStorage")["E&F"].Train.RebirthRE:FireServer()
+      end)
+      Rayfield:Notify({Title = "手動觸發", Content = "已發送一次重生", Duration = 2})
+   end,})
+   
+
+local Players = game:GetService("Players")
+local RS = game:GetService("ReplicatedStorage")
+
+local AttackRemote = RS:WaitForChild("E&F"):WaitForChild("Attack"):WaitForChild("AttackOtherRE")
+
+local AttackTab = Window:CreateTab("攻擊玩家", 4483362458)
+
+local attackSpeed = 0.15
+local attackDamage = 1.0e30
+
+_G.AutoAttackAll = false
+
+AttackTab:CreateSection("全體攻擊設定")
+
+AttackTab:CreateInput({
+   Name = "攻擊速度 (秒)",
+   PlaceholderText = "輸入速度",
+   CurrentValue = tostring(attackSpeed),
+   Callback = function(v)
+      local n = tonumber(v)
+      if n then
+         attackSpeed = n
+      end
+end,})
+
+AttackTab:CreateInput({
+   Name = "攻擊傷害",
+   PlaceholderText = "輸入傷害",
+   CurrentValue = tostring(attackDamage),
+   Callback = function(v)
+      local n = tonumber(v)
+      if n then
+         attackDamage = n
+      end
+end,})
+
+AttackTab:CreateToggle({
+   Name = "持續攻擊全部玩家",
+   CurrentValue = false,
+   Callback = function(v)
+      _G.AutoAttackAll = v end,})
+
+task.spawn(function()
+
+   while true do
+
+      if _G.AutoAttackAll then
+
+         local targets = {}
+
+         for _,plr in pairs(Players:GetPlayers()) do
+            if plr ~= Players.LocalPlayer and plr.Character then
+               table.insert(targets, plr.Character)
+            end
+         end
+
+         if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+
+            local args = {
+               targets,
+               {AttackerCFrame = Players.LocalPlayer.Character.HumanoidRootPart.CFrame,
+                AttackType = "Skill",
+                Damage = attackDamage}}
+
+            AttackRemote:FireServer(unpack(args))
+        end
+    end
+        task.wait(attackSpeed)
+   end
+end)
+
+
+local Players = game:GetService("Players")
+local RE = game:GetService("ReplicatedStorage")
+    :WaitForChild("E&F")
+    :WaitForChild("Train")
+    :WaitForChild("IntoAreaRE")
+
+local SafeTab = Window:CreateTab("安全區功能", 4483362458)
+
+local SelfSafe = false
+
+SafeTab:CreateToggle({
+    Name = "自己無敵 (Safe)",
+    CurrentValue = false,
+    Callback = function(Value)
+        SelfSafe = Value
+
+        if Value then
+            task.spawn(function()
+                while SelfSafe do
+                    RE:FireServer("Safe", true)
+                    task.wait(0.05)
+                end
+            end)
+        else
+
+            RE:FireServer("Safe", false)
+        end
+    end})
+
+
+local OtherTab = Window:CreateTab("其他功能", 4483362458)
+
+local RS = game:GetService("ReplicatedStorage")
+local SetAttribute = RS:WaitForChild("E&F"):WaitForChild("T&A"):WaitForChild("SetAttribute")
+local IntoAreaRE = RS:WaitForChild("E&F"):WaitForChild("Train"):WaitForChild("IntoAreaRE")
+
+local killValue = 1
+
+OtherTab:CreateSection("擊殺數設定")
+
+OtherTab:CreateInput({
+   Name = "設定擊殺數",
+   PlaceholderText = "輸入數字",
+   CurrentValue = "1",
+   Callback = function(v)
+      local n = tonumber(v)
+      if n then
+         killValue = n
+      end
+end,})
+
+OtherTab:CreateButton({
+   Name = "套用擊殺數",
+   Callback = function()
+
+      SetAttribute:FireServer("KillNumber", killValue)
+
+      Rayfield:Notify({
+         Title = "擊殺數已設定",
+         Content = "目前擊殺數: "..killValue,
+         Duration = 3})
+
+end,})
+
+OtherTab:CreateSection("山丘之王")
+
+local HillKing1 = false
+local HillKing2 = false
+
+OtherTab:CreateToggle({
+   Name = "第一區山丘之王",
+   CurrentValue = false,
+   Callback = function(v)
+      HillKing1 = v
+
+      if v then
+         task.spawn(function()
+            while HillKing1 do
+               IntoAreaRE:FireServer("KillKing", true)
+               task.wait(0.1)
+            end
+         end)
+      else
+         IntoAreaRE:FireServer("KillKing", false)
+      end
+end,})
+
+OtherTab:CreateToggle({
+   Name = "第二區山丘之王",
+   CurrentValue = false,
+   Callback = function(v)
+      HillKing2 = v
+
+      if v then
+         task.spawn(function()
+            while HillKing2 do
+               IntoAreaRE:FireServer("KillKing", true)
+               task.wait(0.1)
+            end
+         end)
+      else
+         IntoAreaRE:FireServer("KillKing", false)
+      end
+end,})
+
+local VIPArea1 = false
+OtherTab:CreateToggle({
+    Name = "第一區VIP",
+    CurrentValue = false,
+    Callback = function(v)
+        VIPArea1 = v
+
+        if v then
+            task.spawn(function()
+                while VIPArea1 do
+                    pcall(function()
+                        IntoAreaRE:FireServer("VIP", true)
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        else
+            pcall(function()
+                IntoAreaRE:FireServer("VIP", false)
+            end)
+        end
+    end})
+
+local VIPArea = false
+OtherTab:CreateToggle({
+    Name = "第二區VIP",
+    CurrentValue = false,
+    Callback = function(v)
+        VIPArea = v
+
+        if v then
+            task.spawn(function()
+                while VIPArea do
+                    pcall(function()
+                        IntoAreaRE:FireServer("VIP", true)
+                    end)
+                    task.wait(0.1)
+                end
+            end)
+        else
+            pcall(function()
+                IntoAreaRE:FireServer("VIP", false)
+            end)
+        end
+    end})
+
+OtherTab:CreateSection("自動開箱設定")
+
+local AutoOpenChest = false
+local chestAmount = 1
+
+OtherTab:CreateInput({
+    Name = "開箱數量(1~10)",
+    PlaceholderText = "輸入數字",
+    CurrentValue = "1",
+    Callback = function(v)
+        local n = tonumber(v)
+        if n then
+            if n < 1 then n = 1 end
+            if n > 10 then n = 10 end
+            chestAmount = n
+        end
+    end})
+
+OtherTab:CreateToggle({
+    Name = "自動開箱",
+    CurrentValue = false,
+    Callback = function(v)
+        AutoOpenChest = v
+
+        if AutoOpenChest then
+            task.spawn(function()
+                local RS = game:GetService("ReplicatedStorage")
+                local DoLuck = RS:WaitForChild("E&F"):WaitForChild("Equipment"):WaitForChild("DoLuckRF")
+                
+                for i = 1, chestAmount do
+                    local args = {"neck", "Event1", 1}
+                    pcall(function()
+                        DoLuck:InvokeServer(unpack(args))
+                    end)
+                    task.wait(0.1)
+                end
+
+                AutoOpenChest = false
+            end)
+        end
+    end})
+
+
+local BasicTab = Window:CreateTab("基礎功能", 4483362458)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local walkSpeedValue = 16
+local LockSpeed = false
+
+BasicTab:CreateSection("行走速度")
+
+BasicTab:CreateInput({
+   Name = "設定行走速度",
+   PlaceholderText = "輸入速度",
+   CurrentValue = "16",
+   Callback = function(v)
+
+      local n = tonumber(v)
+
+      if n then
+         walkSpeedValue = n
+
+         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = walkSpeedValue
+         end
+      end
+end,})
+
+BasicTab:CreateToggle({
+   Name = "鎖定行走速度",
+   CurrentValue = false,
+   Callback = function(v)
+      LockSpeed = v
+end,})
+
+task.spawn(function()
+
+   while true do
+
+      if LockSpeed then
+
+         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = walkSpeedValue
+         end
+     end
+      task.wait(0.1)
+   end
+end)
+
+
+BasicTab:CreateSection("跳躍設定")
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local jumpPowerValue = 50
+local LockJump = false
+
+BasicTab:CreateInput({
+   Name = "設定跳躍高度",
+   PlaceholderText = "輸入跳躍高度",
+   CurrentValue = "50",
+   Callback = function(v)
+
+      local n = tonumber(v)
+
+      if n then
+         jumpPowerValue = n
+
+         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = jumpPowerValue
+         end
+      end
+end,})
+
+BasicTab:CreateToggle({
+   Name = "鎖定跳躍高度",
+   CurrentValue = false,
+   Callback = function(v)
+      LockJump = v
+end,})
+
+task.spawn(function()
+
+   while true do
+
+      if LockJump then
+
+         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = jumpPowerValue
+         end
+     end
+          task.wait(0.1)
+      end
+end)
+
+
+spawn(function()
+   while true do
+      if _G.AutoTrain then
+         pcall(function()
+            game:GetService("ReplicatedStorage")["E&F"].Train.TrainOnceRE:FireServer(trainAmount)
+         end)
+      end
+      wait(0.12)
+   end
+end)
+
+spawn(function()
+   while true do
+      if _G.AutoRebirth then
+         pcall(function()
+            game:GetService("ReplicatedStorage")["E&F"].Train.RebirthRE:FireServer()
+         end)
+      end
+      wait(2)
+   end
+end)
+
+Rayfield:Notify({
+   Title = "腳本載入完成",
+   Content = "之後有空再更新,作者Instagram已複製到剪貼簿",
+   Duration = 8})
+
+setclipboard("https://www.instagram.com/llii_6690?igsh=bHNzcjh0OThrN3Jt")
+
+local CloseTab = Window:CreateTab("腳本設定", 4483362458)
+
+CloseTab:CreateButton({
+   Name = "關閉腳本",
+   Callback = function()
+
+      _G.AutoTrain = false
+      _G.AutoRebirth = false
+      _G.AutoAttackAll = false
+      LockSpeed = false
+      LockJump = false
+      SelfSafe = false
+
+      pcall(function()
+         RE:FireServer("Safe", false)
+      end)
+
+      if Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+         local hum = Players.LocalPlayer.Character.Humanoid
+         hum.WalkSpeed = 16
+         hum.JumpPower = 50
+         hum.PlatformStand = false
+      end
+     Rayfield:Destroy()
+end,})
