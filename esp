@@ -1,0 +1,147 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local enabled = false
+local trackers = {}
+
+-- --- UI 建立 (保持原樣) ---
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "EnemyESP_Predictor_Final"
+pcall(function() screenGui.Parent = CoreGui end)
+if not screenGui.Parent then screenGui.Parent = player:WaitForChild("PlayerGui") end
+
+local btn = Instance.new("TextButton")
+btn.Size = UDim2.new(0, 90, 0, 90)
+btn.Position = UDim2.new(0.6, 0, 0.2, 0)
+btn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+btn.BorderSizePixel = 2
+btn.BorderColor3 = Color3.fromRGB(255, 255, 255)
+btn.Text = "ESP\nOFF"
+btn.TextColor3 = Color3.fromRGB(255, 100, 100)
+btn.Font = Enum.Font.RobotoMono
+btn.TextSize = 18
+btn.Parent = screenGui
+
+-- --- 拖動邏輯 ---
+local dragging, dragStart, startPos
+btn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = input.Position; startPos = btn.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end end)
+
+-- --- 核心功能：建立追蹤物件 ---
+local function createTracker(targetPlayer)
+    local container = Instance.new("Folder")
+    container.Name = "ESP_" .. targetPlayer.UserId
+    container.Parent = workspace
+
+    local box = Instance.new("Part")
+    box.Size = Vector3.new(3, 3, 3)
+    box.Color = Color3.fromRGB(255, 0, 0)
+    box.Transparency = 0.75; box.CanCollide = false; box.Anchored = true; box.Parent = container
+
+    local selection = Instance.new("SelectionBox")
+    selection.Adornee = box; selection.Color3 = Color3.new(1, 1, 1); selection.Parent = box
+
+    local vLine = Instance.new("Part")
+    vLine.Name = "PredictLine"; vLine.Material = Enum.Material.Neon; vLine.Color = Color3.fromRGB(0, 255, 255)
+    vLine.CanCollide = false; vLine.Anchored = true; vLine.Transparency = 0.4; vLine.Parent = container
+
+    local att0 = Instance.new("Attachment", box)
+    local att1 = Instance.new("Attachment")
+    local beam = Instance.new("Beam")
+    beam.Attachment0 = att0; beam.Attachment1 = att1
+    beam.Color = ColorSequence.new(Color3.new(1, 0, 0))
+    beam.Width0, beam.Width1 = 0.1, 0.1; beam.FaceCamera = true; beam.Parent = box
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Size = UDim2.new(0, 150, 0, 40); billboard.AlwaysOnTop = true
+    billboard.ExtentsOffset = Vector3.new(0, 2.5, 0); billboard.Parent = box
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0); label.BackgroundTransparency = 1; label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextStrokeTransparency = 0.5; label.Font = Enum.Font.Code; label.TextSize = 10; label.Parent = billboard
+
+    return { container = container, box = box, vLine = vLine, att1 = att1, label = label }
+end
+
+-- --- 指令修改：監聽玩家離開事件 ---
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if trackers[leavingPlayer.UserId] then
+        trackers[leavingPlayer.UserId].container:Destroy()
+        if trackers[leavingPlayer.UserId].att1 then trackers[leavingPlayer.UserId].att1:Destroy() end
+        trackers[leavingPlayer.UserId] = nil
+        print("Cleaned ESP for leaving player: " .. leavingPlayer.Name)
+    end
+end)
+
+-- --- 核心循環 ---
+RunService.RenderStepped:Connect(function()
+    if not enabled then
+        for id, data in pairs(trackers) do 
+            if data.container then data.container:Destroy() end
+            if data.att1 then data.att1:Destroy() end
+        end
+        trackers = {}
+        return
+    end
+
+    local myChar = player.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return end
+    local myY = myRoot.Position.Y
+
+    for _, target in ipairs(Players:GetPlayers()) do
+        if target ~= player and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetRoot = target.Character.HumanoidRootPart
+            local data = trackers[target.UserId]
+
+            if not data then data = createTracker(target); trackers[target.UserId] = data end
+
+            -- 方塊跟隨
+            local targetPosAtMyHeight = Vector3.new(targetRoot.Position.X, myY, targetRoot.Position.Z)
+            data.box.CFrame = CFrame.new(targetPosAtMyHeight)
+
+            -- 預測線
+            local velocity = targetRoot.AssemblyLinearVelocity
+            local speed = velocity.Magnitude
+            if speed > 2 then
+                data.vLine.Transparency = 0.4
+                local lineLength = speed * 0.4 
+                data.vLine.Size = Vector3.new(0.25, 0.25, lineLength)
+                data.vLine.CFrame = CFrame.lookAt(targetPosAtMyHeight, targetPosAtMyHeight + velocity) * CFrame.new(0, 0, -lineLength/2)
+            else
+                data.vLine.Transparency = 1
+            end
+
+            if data.att1.Parent ~= targetRoot then data.att1.Parent = targetRoot end
+            local yDiff = targetRoot.Position.Y - myY
+            data.label.Text = string.format("%s\n[Y: %.1f]", target.Name, yDiff)
+        else
+            -- 玩家還在但在重生中，暫時移除視覺效果
+            if trackers[target.UserId] then 
+                trackers[target.UserId].container:Destroy()
+                if trackers[target.UserId].att1 then trackers[target.UserId].att1:Destroy() end
+                trackers[target.UserId] = nil 
+            end
+        end
+    end
+end)
+
+btn.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    btn.Text = enabled and "ESP\nON" or "ESP\nOFF"
+    btn.TextColor3 = enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+    btn.BorderColor3 = enabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 255, 255)
+end)
