@@ -7,7 +7,7 @@ local ts = game:GetService("TweenService")
 local autoKnife = false
 local autoGun = false
 local espEnabled = true
-local harvestRange = 35
+local harvestRange = 100
 local espObjects = {}
 local uiActive = true
 local isMinimized = false
@@ -129,7 +129,7 @@ task.spawn(function()
             end
             
             if autoGun then
-                local gun = char:FindFirstChild("CrocodileHunter") or char:FindFirstChild("NightFall")
+                local gun = char:FindFirstChild("CrocodileHunter") or char:FindFirstChild("M82") -- 原為NightFall改為M82
                 local gRemote = gun and gun:FindFirstChild("Scripts") and gun.Scripts.System:FindFirstChild("Hit")
                 if gRemote then
                     for _, a in pairs(anims:GetChildren()) do
@@ -160,4 +160,4 @@ end)
 knifeBtn.MouseButton1Click:Connect(function() autoKnife = not autoKnife; knifeBtn.Text = autoKnife and "自動砍殺：ON" or "自動砍殺：OFF"; knifeBtn.BackgroundColor3 = autoKnife and Color3.fromRGB(150, 50, 50) or Color3.fromRGB(60, 30, 30) end)
 gunBtn.MouseButton1Click:Connect(function() autoGun = not autoGun; gunBtn.Text = autoGun and "自動連發：ON" or "自動連發：OFF"; gunBtn.BackgroundColor3 = autoGun and Color3.fromRGB(50, 80, 150) or Color3.fromRGB(30, 40, 60) end)
 espBtn.MouseButton1Click:Connect(function() espEnabled = not espEnabled; espBtn.Text = espEnabled and "全景 ESP：ON" or "全景 ESP：OFF" end)
-rangeInput.FocusLost:Connect(function() harvestRange = tonumber(rangeInput.Text) or 35 end)
+rangeInput.FocusLost:Connect(function() harvestRange = tonumber(rangeInput.Text) or 100 end) -- Logs:將35改為100
