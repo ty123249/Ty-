@@ -1,3 +1,8 @@
+-- --- PlaceId 驗證 (非指定地圖直接結束) ---
+if game.PlaceId ~= 12575645876 then 
+    return 
+end
+
 local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 local rs = game:GetService("ReplicatedStorage")
@@ -9,18 +14,17 @@ local RunService = game:GetService("RunService")
 -- --- 全局變數控制 ---
 local autoKnife = false
 local autoGun = false
-local espEnabled = true
-local killActive = false       -- 玩家殺戮
-local pEspEnabled = true       -- 玩家 ESP
-local autoHealEnabled = false  -- 極限醫療
-local isProcessing = false     -- 醫療冷卻狀態
+local killActive = false       
+local espEnabled = true        
+local autoHealEnabled = false  
+local isProcessing = false     
 
-local harvestRange = 100       -- 動物採集範圍
+local harvestRange = 100       -- 目標範圍
 local killRange = 300          -- 玩家殺戮範圍
-local espObjects = {}          -- 動物 ESP 快取
-local playerEspObjects = {}    -- 玩家 ESP 快取
+local animalEspObjects = {}    
+local playerEspObjects = {}    
 local lastRefresh = tick()
-local myName = "hk_c002"       -- 玩家 ESP 排除自己
+local myName = "hk_c002"       
 
 local uiActive = true
 local isMinimized = false
@@ -37,12 +41,12 @@ local SetValueRemote = pEvents and pEvents:WaitForChild("SetItemObjValue", 5)
 
 -- --- 1. UI 系統主框架 ---
 local screenGui = Instance.new("ScreenGui", lp:WaitForChild("PlayerGui"))
-screenGui.Name = "OmniHarvester_V5_Merged"
+screenGui.Name = "OmniHarvester_V8"
 screenGui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 220, 0, 460) -- 增高尺寸以容納所有獨立按鈕
-mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.Size = UDim2.new(0, 220, 0, 390) 
+mainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 mainFrame.Active = true
 mainFrame.ClipsDescendants = true
@@ -51,11 +55,11 @@ Instance.new("UICorner", mainFrame)
 -- 頂部標題
 local titleLabel = Instance.new("TextLabel", mainFrame)
 titleLabel.Size = UDim2.new(1, 0, 0, 35)
-titleLabel.Text = "OMNI CONTROL PANEL"
+titleLabel.Text = "狩獵全能"
 titleLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
 titleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 titleLabel.Font = Enum.Font.SourceSansBold
-titleLabel.TextSize = 14
+titleLabel.TextSize = 16
 
 -- 現代拖動邏輯
 local dragging, dragStart, startPos
@@ -72,81 +76,102 @@ uis.InputChanged:Connect(function(input)
 end)
 uis.InputEnded:Connect(function(input) dragging = false end)
 
--- 內容容器 (滾動區域防爆框)
-local contentFrame = Instance.new("ScrollingFrame", mainFrame)
+-- 內容容器
+local contentFrame = Instance.new("Frame", mainFrame)
 contentFrame.Size = UDim2.new(1, 0, 1, -40)
 contentFrame.Position = UDim2.new(0, 0, 0, 40)
 contentFrame.BackgroundTransparency = 1
-contentFrame.CanvasSize = UDim2.new(0, 0, 0, 480)
-contentFrame.ScrollBarThickness = 2
 
--- 最小化與關閉按鈕
+-- 最小化按鈕
 local minBtn = Instance.new("TextButton", mainFrame)
 minBtn.Size = UDim2.new(0, 25, 0, 25); minBtn.Position = UDim2.new(1, -60, 0, 5); minBtn.Text = "-"; minBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60); minBtn.TextColor3 = Color3.new(1, 1, 1); minBtn.ZIndex = 10
 Instance.new("UICorner", minBtn)
 
+-- 關閉按鈕 (內置完全關閉所有功能邏輯)
 local closeBtn = Instance.new("TextButton", mainFrame)
 closeBtn.Size = UDim2.new(0, 25, 0, 25); closeBtn.Position = UDim2.new(1, -30, 0, 5); closeBtn.Text = "X"; closeBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 40); closeBtn.TextColor3 = Color3.new(1, 1, 1); closeBtn.ZIndex = 10
 Instance.new("UICorner", closeBtn)
 
-closeBtn.MouseButton1Click:Connect(function() uiActive = false; screenGui:Destroy() end)
+closeBtn.MouseButton1Click:Connect(function() 
+    uiActive = false
+    -- 關閉時所有功能重置為 false
+    autoKnife = false
+    autoGun = false
+    killActive = false
+    espEnabled = false
+    autoHealEnabled = false
+    
+    -- 清除所有 ESP 顯示
+    for _, e in pairs(animalEspObjects) do if e.Gui then e.Gui:Destroy() end end
+    for _, e in pairs(playerEspObjects) do if e.Gui then e.Gui:Destroy() end end
+    
+    -- 還原霧氣
+    Lighting.FogEnd = 1500
+    local oldAtm = rs:FindFirstChildOfClass("Atmosphere")
+    if oldAtm then oldAtm.Parent = Lighting end
+    
+    screenGui:Destroy() 
+end)
+
 minBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    ts:Create(mainFrame, TweenInfo.new(0.3), {Size = isMinimized and UDim2.new(0, 220, 0, 35) or UDim2.new(0, 220, 0, 460)}):Play()
+    ts:Create(mainFrame, TweenInfo.new(0.3), {Size = isMinimized and UDim2.new(0, 220, 0, 35) or UDim2.new(0, 220, 0, 390)}):Play()
     contentFrame.Visible = not isMinimized
     minBtn.Text = isMinimized and "+" or "-"
 end)
 
--- --- 2. 獨立按鈕與輸入框建立 (無括號格式) ---
+-- --- 2. 獨立按鈕與輸入框建立 ---
 local function createBtn(text, pos, color)
     local btn = Instance.new("TextButton", contentFrame); btn.Size = UDim2.new(0.9, 0, 0, 35); btn.Position = pos; btn.BackgroundColor3 = color; btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.SourceSansBold; btn.TextSize = 14; btn.Text = text; Instance.new("UICorner", btn); return btn
 end
 
-local knifeBtn = createBtn("自動砍殺：OFF", UDim2.new(0.05, 0, 0.01, 0), Color3.fromRGB(60, 30, 30))
-local gunBtn = createBtn("自動連發：OFF", UDim2.new(0.05, 0, 0.10, 0), Color3.fromRGB(30, 40, 60))
-local espBtn = createBtn("動物 ESP：ON", UDim2.new(0.05, 0, 0.19, 0), Color3.fromRGB(30, 60, 40))
-local killBtn = createBtn("玩家殺戮：OFF", UDim2.new(0.05, 0, 0.28, 0), Color3.fromRGB(80, 10, 10))
-local pEspBtn = createBtn("玩家 ESP：ON", UDim2.new(0.05, 0, 0.37, 0), Color3.fromRGB(40, 40, 60))
-local healBtn = createBtn("極限醫療：OFF", UDim2.new(0.05, 0, 0.46, 0), Color3.fromRGB(120, 0, 0))
-local fogBtn = createBtn("移除霧氣：OFF", UDim2.new(0.05, 0, 0.55, 0), Color3.fromRGB(50, 50, 50))
+local knifeBtn = createBtn("自動砍殺：OFF", UDim2.new(0.05, 0, 0.02, 0), Color3.fromRGB(60, 30, 30))
+local gunBtn = createBtn("自動連發：OFF", UDim2.new(0.05, 0, 0.13, 0), Color3.fromRGB(30, 40, 60))
+local killBtn = createBtn("玩家殺戮：OFF", UDim2.new(0.05, 0, 0.24, 0), Color3.fromRGB(80, 10, 10)) 
+local espBtn = createBtn("全景 ESP：ON", UDim2.new(0.05, 0, 0.35, 0), Color3.fromRGB(30, 60, 40))   
+local healBtn = createBtn("醫療：OFF", UDim2.new(0.05, 0, 0.46, 0), Color3.fromRGB(120, 0, 0))
+local fogBtn = createBtn("移除霧氣：OFF", UDim2.new(0.05, 0, 0.57, 0), Color3.fromRGB(50, 50, 50))
 
 -- 範圍設定輸入區
 local rangeLabel = Instance.new("TextLabel", contentFrame)
-rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.65, 0); rangeLabel.Text = "採集範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
+rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.70, 0); rangeLabel.Text = "目標範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.65, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = tostring(harvestRange); rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
+local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.70, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = tostring(harvestRange); rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
 
-local statusLabel = Instance.new("TextLabel", contentFrame); statusLabel.Size = UDim2.new(1, 0, 0, 30); statusLabel.Position = UDim2.new(0, 0, 0.72, 0); statusLabel.Text = "全功能整合版已就緒"; statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7); statusLabel.BackgroundTransparency = 1
+-- 底部標題修改
+local statusLabel = Instance.new("TextLabel", contentFrame); statusLabel.Size = UDim2.new(1, 0, 0, 30); statusLabel.Position = UDim2.new(0, 0, 0.81, 0); statusLabel.Text = "狩獵全能已就緒"; statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7); statusLabel.BackgroundTransparency = 1
 
--- --- 3. 核心邏輯處理 ---
+-- --- 3. 核心功能處理函數 ---
 
--- 動物 ESP 函數
-local function UpdateAnimalESP(hrp, anims)
-    if not anims or not hrp then return end
-    for _, v in pairs(anims:GetChildren()) do
-        if not espObjects[v] then
-            local bg = Instance.new("BillboardGui", v); bg.AlwaysOnTop = true; bg.Size = UDim2.new(0, 80, 0, 20); bg.StudsOffset = Vector3.new(0, 3, 0)
-            local lb = Instance.new("TextLabel", bg); lb.Size = UDim2.new(1, 0, 1, 0); lb.BackgroundTransparency = 1; lb.Font = Enum.Font.SourceSansBold; lb.TextSize = 11; lb.TextStrokeTransparency = 0.5; espObjects[v] = {Label = lb, Gui = bg}
-        end
-        local root = v:FindFirstChildWhichIsA("BasePart", true)
-        if root then
-            local dist = (hrp.Position - root.Position).Magnitude
-            espObjects[v].Label.Text = v.Name .. "\n" .. math.floor(dist) .. "m"
-            espObjects[v].Label.TextColor3 = (dist <= harvestRange) and Color3.new(1, 0, 0) or Color3.new(0, 1, 0)
-            espObjects[v].Label.Visible = espEnabled
+-- 合併 ESP 處理常式
+local function UpdateMergedESP(hrp)
+    if not espEnabled then return end
+    
+    -- 動物 ESP
+    local anims = workspace:FindFirstChild("Living") and workspace.Living:FindFirstChild("Animals")
+    if anims then
+        for _, v in pairs(anims:GetChildren()) do
+            if not animalEspObjects[v] then
+                local bg = Instance.new("BillboardGui", v); bg.AlwaysOnTop = true; bg.Size = UDim2.new(0, 80, 0, 20); bg.StudsOffset = Vector3.new(0, 3, 0)
+                local lb = Instance.new("TextLabel", bg); lb.Size = UDim2.new(1, 0, 1, 0); lb.BackgroundTransparency = 1; lb.Font = Enum.Font.SourceSansBold; lb.TextSize = 11; lb.TextStrokeTransparency = 0.5; animalEspObjects[v] = {Label = lb, Gui = bg}
+            end
+            local root = v:FindFirstChildWhichIsA("BasePart", true)
+            if root then
+                local dist = (hrp.Position - root.Position).Magnitude
+                animalEspObjects[v].Label.Text = v.Name .. "\n" .. math.floor(dist) .. "m"
+                animalEspObjects[v].Label.TextColor3 = (dist <= harvestRange) and Color3.new(1, 0, 0) or Color3.new(0, 1, 0)
+                animalEspObjects[v].Label.Visible = true
+            end
         end
     end
-    for o, e in pairs(espObjects) do if not o.Parent then if e.Gui then e.Gui:Destroy() end espObjects[o] = nil end end
-end
+    for o, e in pairs(animalEspObjects) do if not o.Parent then if e.Gui then e.Gui:Destroy() end animalEspObjects[o] = nil end end
 
--- 玩家 ESP 函數
-local function UpdatePlayerESP(hrp)
+    -- 玩家 ESP
     if tick() - lastRefresh >= 5 then
         for _, e in pairs(playerEspObjects) do if e.Gui then e.Gui:Destroy() end end
         playerEspObjects = {}
         lastRefresh = tick()
     end
-    
     for _, v in pairs(workspace:GetChildren()) do
         if v:IsA("Model") and v.Name ~= myName and Players:FindFirstChild(v.Name) then
             if not playerEspObjects[v] then
@@ -154,19 +179,18 @@ local function UpdatePlayerESP(hrp)
                 local lb = Instance.new("TextLabel", bg); lb.Size = UDim2.new(1, 0, 1, 0); lb.BackgroundTransparency = 1; lb.TextColor3 = Color3.new(1, 0.3, 0.3); lb.Font = Enum.Font.SourceSansBold; lb.TextSize = 13; lb.TextStrokeTransparency = 0
                 playerEspObjects[v] = {Label = lb, Gui = bg}
             end
-            
             local targetPart = v:FindFirstChild("HumanoidRootPart") or v:FindFirstChildWhichIsA("BasePart")
-            if targetPart and hrp then
+            if targetPart then
                 local dist = math.floor((hrp.Position - targetPart.Position).Magnitude)
                 playerEspObjects[v].Label.Text = "[PLAYER] " .. v.Name .. "\n" .. dist .. "m"
-                playerEspObjects[v].Label.Visible = pEspEnabled
+                playerEspObjects[v].Label.Visible = true
             end
         end
     end
     for o, e in pairs(playerEspObjects) do if not o.Parent then if e.Gui then e.Gui:Destroy() end playerEspObjects[o] = nil end end
 end
 
--- 極限醫療觸發
+-- 醫療觸發
 local function doOverdriveHeal()
     isProcessing = true
     local hb5 = lp:FindFirstChild("HotBar") and lp.HotBar:FindFirstChild("5")
@@ -193,7 +217,6 @@ end
 
 -- --- 4. 核心工作主循環群 ---
 
--- 主要自動化功能循環 (動物、玩家殺戮、ESP)
 task.spawn(function()
     while uiActive do
         local char = lp.Character
@@ -244,7 +267,7 @@ task.spawn(function()
                 end
             end
 
-            -- 玩家暴擊殺戮
+            -- 玩家殺戮
             if killActive and normalBullet then
                 local hitRemote = nil
                 local weapon = char:FindFirstChild("CrocodileHunter")
@@ -280,11 +303,10 @@ task.spawn(function()
                 end
             end
 
-            -- ESP 更新
-            UpdateAnimalESP(hrp, anims)
-            UpdatePlayerESP(hrp)
+            -- 更新合併 ESP
+            UpdateMergedESP(hrp)
         end
-        task.wait(0.1)
+        task.wait(0.05)
     end
 end)
 
@@ -299,7 +321,7 @@ RunService.Heartbeat:Connect(function()
 end)
 
 
--- --- 5. 按鈕點擊交互綁定 (去括號乾淨字樣) ---
+-- --- 5. 按鈕點擊交互綁定 ---
 knifeBtn.MouseButton1Click:Connect(function() 
     autoKnife = not autoKnife 
     knifeBtn.Text = autoKnife and "自動砍殺：ON" or "自動砍殺：OFF"
@@ -312,26 +334,27 @@ gunBtn.MouseButton1Click:Connect(function()
     gunBtn.BackgroundColor3 = autoGun and Color3.fromRGB(50, 80, 150) or Color3.fromRGB(30, 40, 60) 
 end)
 
-espBtn.MouseButton1Click:Connect(function() 
-    espEnabled = not espEnabled 
-    espBtn.Text = espEnabled and "動物 ESP：ON" or "動物 ESP：OFF" 
-end)
-
 killBtn.MouseButton1Click:Connect(function()
     killActive = not killActive
     killBtn.Text = killActive and "玩家殺戮：ON" or "玩家殺戮：OFF"
     killBtn.BackgroundColor3 = killActive and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(80, 10, 10)
 end)
 
-pEspBtn.MouseButton1Click:Connect(function()
-    pEspEnabled = not pEspEnabled
-    pEspBtn.Text = pEspEnabled and "玩家 ESP：ON" or "玩家 ESP：OFF"
-    pEspBtn.BackgroundColor3 = pEspEnabled and Color3.fromRGB(40, 100, 60) or Color3.fromRGB(60, 40, 40)
+espBtn.MouseButton1Click:Connect(function() 
+    espEnabled = not espEnabled 
+    espBtn.Text = espEnabled and "全景 ESP：ON" or "全景 ESP：OFF" 
+    espBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(30, 60, 40) or Color3.fromRGB(60, 40, 40)
+    
+    -- 關閉時清空畫面標籤
+    if not espEnabled then
+        for _, e in pairs(animalEspObjects) do if e.Gui then e.Gui.TextLabel.Visible = false end end
+        for _, e in pairs(playerEspObjects) do if e.Gui then e.Gui.TextLabel.Visible = false end end
+    end
 end)
 
 healBtn.MouseButton1Click:Connect(function()
     autoHealEnabled = not autoHealEnabled
-    healBtn.Text = autoHealEnabled and "極限醫療：ON" or "極限醫療：OFF"
+    healBtn.Text = autoHealEnabled and "醫療：ON" or "醫療：OFF"
     healBtn.BackgroundColor3 = autoHealEnabled and Color3.fromRGB(0, 180, 0) or Color3.fromRGB(120, 0, 0)
 end)
 
@@ -353,4 +376,3 @@ rangeInput.FocusLost:Connect(function()
     harvestRange = tonumber(rangeInput.Text) or 100 
     rangeInput.Text = tostring(harvestRange)
 end)
-
