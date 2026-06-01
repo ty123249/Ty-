@@ -19,8 +19,7 @@ local espEnabled = true
 local autoHealEnabled = false  
 local isProcessing = false     
 
-local harvestRange = 100       -- 目標範圍
-local killRange = 300          -- 玩家殺戮範圍
+local harvestRange = 100       -- 統一目標與殺戮範圍
 local animalEspObjects = {}    
 local playerEspObjects = {}    
 local lastRefresh = tick()
@@ -87,25 +86,22 @@ local minBtn = Instance.new("TextButton", mainFrame)
 minBtn.Size = UDim2.new(0, 25, 0, 25); minBtn.Position = UDim2.new(1, -60, 0, 5); minBtn.Text = "-"; minBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60); minBtn.TextColor3 = Color3.new(1, 1, 1); minBtn.ZIndex = 10
 Instance.new("UICorner", minBtn)
 
--- 關閉按鈕 (內置完全關閉所有功能邏輯)
+-- 關閉按鈕
 local closeBtn = Instance.new("TextButton", mainFrame)
 closeBtn.Size = UDim2.new(0, 25, 0, 25); closeBtn.Position = UDim2.new(1, -30, 0, 5); closeBtn.Text = "X"; closeBtn.BackgroundColor3 = Color3.fromRGB(120, 40, 40); closeBtn.TextColor3 = Color3.new(1, 1, 1); closeBtn.ZIndex = 10
 Instance.new("UICorner", closeBtn)
 
 closeBtn.MouseButton1Click:Connect(function() 
     uiActive = false
-    -- 關閉時所有功能重置為 false
     autoKnife = false
     autoGun = false
     killActive = false
     espEnabled = false
     autoHealEnabled = false
     
-    -- 清除所有 ESP 顯示
     for _, e in pairs(animalEspObjects) do if e.Gui then e.Gui:Destroy() end end
     for _, e in pairs(playerEspObjects) do if e.Gui then e.Gui:Destroy() end end
     
-    -- 還原霧氣
     Lighting.FogEnd = 1500
     local oldAtm = rs:FindFirstChildOfClass("Atmosphere")
     if oldAtm then oldAtm.Parent = Lighting end
@@ -134,16 +130,15 @@ local fogBtn = createBtn("移除霧氣：OFF", UDim2.new(0.05, 0, 0.57, 0), Colo
 
 -- 範圍設定輸入區
 local rangeLabel = Instance.new("TextLabel", contentFrame)
-rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.70, 0); rangeLabel.Text = "目標範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
+rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.70, 0); rangeLabel.Text = "作戰範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
 
 local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.70, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = tostring(harvestRange); rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
 
--- 底部標題修改
-local statusLabel = Instance.new("TextLabel", contentFrame); statusLabel.Size = UDim2.new(1, 0, 0, 30); statusLabel.Position = UDim2.new(0, 0, 0.81, 0); statusLabel.Text = "狩獵全能已就緒"; statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7); statusLabel.BackgroundTransparency = 1
+-- 底部狀態
+local statusLabel = Instance.new("TextLabel", contentFrame); statusLabel.Size = UDim2.new(1, 0, 0, 30); statusLabel.Position = UDim2.new(0, 0, 0.81, 0); statusLabel.Text = "範圍融合版本已就緒"; statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7); statusLabel.BackgroundTransparency = 1
 
 -- --- 3. 核心功能處理函數 ---
 
--- 合併 ESP 處理常式
 local function UpdateMergedESP(hrp)
     if not espEnabled then return end
     
@@ -183,6 +178,7 @@ local function UpdateMergedESP(hrp)
             if targetPart then
                 local dist = math.floor((hrp.Position - targetPart.Position).Magnitude)
                 playerEspObjects[v].Label.Text = "[PLAYER] " .. v.Name .. "\n" .. dist .. "m"
+                playerEspObjects[v].Label.TextColor3 = (dist <= harvestRange) and Color3.new(1, 0, 0) or Color3.new(1, 0.3, 0.3)
                 playerEspObjects[v].Label.Visible = true
             end
         end
@@ -190,7 +186,6 @@ local function UpdateMergedESP(hrp)
     for o, e in pairs(playerEspObjects) do if not o.Parent then if e.Gui then e.Gui:Destroy() end playerEspObjects[o] = nil end end
 end
 
--- 醫療觸發
 local function doOverdriveHeal()
     isProcessing = true
     local hb5 = lp:FindFirstChild("HotBar") and lp.HotBar:FindFirstChild("5")
@@ -204,7 +199,7 @@ local function doOverdriveHeal()
             for i = 1, 3 do
                 local medkit = char:FindFirstChild("Medkit")
                 if medkit then
-                    local heal = medkit:FindFirstChild("Scripts") and medkit.Scripts:FindFirstChild("System") and medkit.Scripts.System:FindFirstChild("Binds") and medkit.Scripts.System.Binds:FindFirstChild("Heal") and medkit.Scripts.System.Binds.Heal:FindFirstChild("Heal")
+                    local heal = medkit:FindFirstChild("Scripts") and medkit.Scripts.System:FindFirstChild("Binds") and medkit.Scripts.System.Binds:FindFirstChild("Heal") and medkit.Scripts.System.Binds.Heal:FindFirstChild("Heal")
                     if heal then heal:InvokeServer() end
                     break
                 end
@@ -224,7 +219,7 @@ task.spawn(function()
         local anims = workspace:FindFirstChild("Living") and workspace.Living:FindFirstChild("Animals")
         
         if hrp then
-            -- 動物自動砍殺
+            -- 動物自動砍殺 (使用融合後的 harvestRange)
             if autoKnife and anims then
                 local knife = char:FindFirstChild("HuntingKnife") or lp.Backpack:FindFirstChild("HuntingKnife")
                 local kRemote = knife and knife:FindFirstChild("Scripts") and knife.Scripts.System:FindFirstChild("Hit")
@@ -242,9 +237,9 @@ task.spawn(function()
                 end
             end
             
-            -- 動物自動槍擊
+            -- 動物自動槍擊 (使用融合後的 harvestRange)
             if autoGun and anims and normalBullet then
-                local gun = char:FindFirstChild("CrocodileHunter") or char:FindFirstChild("M82")
+                local gun = char:FindFirstChild("M82") or char:FindFirstChild("CrocodileHunter")
                 local gRemote = gun and gun:FindFirstChild("Scripts") and gun.Scripts.System:FindFirstChild("Hit")
                 if gRemote then
                     for _, a in pairs(anims:GetChildren()) do
@@ -267,25 +262,27 @@ task.spawn(function()
                 end
             end
 
-            -- 玩家殺戮
+            -- 玩家殺戮 (限定 M82 武器 且 使用融合後的 harvestRange)
             if killActive and normalBullet then
-                local hitRemote = nil
-                local weapon = char:FindFirstChild("CrocodileHunter")
-                if weapon then
-                    hitRemote = weapon:FindFirstChild("Scripts") and weapon.Scripts:FindFirstChild("System") and weapon.Scripts.System:FindFirstChild("Hit")
-                end
-                if not hitRemote then
-                    for _, v in pairs(char:GetDescendants()) do
+                local weapon = char:FindFirstChild("M82") -- 嚴格鎖定必須裝備 M82
+                local hitRemote = weapon and weapon:FindFirstChild("Scripts") and weapon.Scripts:FindFirstChild("System") and weapon.Scripts.System:FindFirstChild("Hit")
+                
+                -- 如果找不到標準路徑，再嘗試動態搜索 M82 內部的 RemoteEvent
+                if weapon and not hitRemote then
+                    for _, v in pairs(weapon:GetDescendants()) do
                         if v.Name == "Hit" and v:IsA("RemoteEvent") then hitRemote = v; break end
                     end
                 end
+                
                 if hitRemote then
                     for _, p in pairs(Players:GetPlayers()) do
                         if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                             local targetHrp = p.Character.HumanoidRootPart
                             local targetHum = p.Character:FindFirstChild("Humanoid")
                             local dist = (targetHrp.Position - hrp.Position).Magnitude
-                            if targetHum and targetHum.Health > 0 and dist <= killRange then
+                            
+                            -- 使用融合後的 harvestRange 進行判斷
+                            if targetHum and targetHum.Health > 0 and dist <= harvestRange then
                                 hitRemote:FireServer({
                                     DistanceMade = Vector3.zero,
                                     StartPosition = hrp.Position,
@@ -320,7 +317,6 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-
 -- --- 5. 按鈕點擊交互綁定 ---
 knifeBtn.MouseButton1Click:Connect(function() 
     autoKnife = not autoKnife 
@@ -345,7 +341,6 @@ espBtn.MouseButton1Click:Connect(function()
     espBtn.Text = espEnabled and "全景 ESP：ON" or "全景 ESP：OFF" 
     espBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(30, 60, 40) or Color3.fromRGB(60, 40, 40)
     
-    -- 關閉時清空畫面標籤
     if not espEnabled then
         for _, e in pairs(animalEspObjects) do if e.Gui then e.Gui.TextLabel.Visible = false end end
         for _, e in pairs(playerEspObjects) do if e.Gui then e.Gui.TextLabel.Visible = false end end
