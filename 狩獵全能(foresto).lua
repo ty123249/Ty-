@@ -44,7 +44,7 @@ screenGui.Name = "OmniHarvester_V8"
 screenGui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 220, 0, 390) 
+mainFrame.Size = UDim2.new(0, 220, 0, 430) -- 微調高度以容納新按鈕
 mainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
 mainFrame.Active = true
@@ -111,7 +111,7 @@ end)
 
 minBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    ts:Create(mainFrame, TweenInfo.new(0.3), {Size = isMinimized and UDim2.new(0, 220, 0, 35) or UDim2.new(0, 220, 0, 390)}):Play()
+    ts:Create(mainFrame, TweenInfo.new(0.3), {Size = isMinimized and UDim2.new(0, 220, 0, 35) or UDim2.new(0, 220, 0, 430)}):Play()
     contentFrame.Visible = not isMinimized
     minBtn.Text = isMinimized and "+" or "-"
 end)
@@ -122,20 +122,21 @@ local function createBtn(text, pos, color)
 end
 
 local knifeBtn = createBtn("自動砍殺：OFF", UDim2.new(0.05, 0, 0.02, 0), Color3.fromRGB(60, 30, 30))
-local gunBtn = createBtn("自動連發：OFF", UDim2.new(0.05, 0, 0.13, 0), Color3.fromRGB(30, 40, 60))
-local killBtn = createBtn("玩家殺戮：OFF", UDim2.new(0.05, 0, 0.24, 0), Color3.fromRGB(80, 10, 10)) 
-local espBtn = createBtn("全景 ESP：ON", UDim2.new(0.05, 0, 0.35, 0), Color3.fromRGB(30, 60, 40))   
-local healBtn = createBtn("醫療：OFF", UDim2.new(0.05, 0, 0.46, 0), Color3.fromRGB(120, 0, 0))
-local fogBtn = createBtn("移除霧氣：OFF", UDim2.new(0.05, 0, 0.57, 0), Color3.fromRGB(50, 50, 50))
+local gunBtn = createBtn("自動連發：OFF", UDim2.new(0.05, 0, 0.11, 0), Color3.fromRGB(30, 40, 60))
+local killBtn = createBtn("玩家殺戮：OFF", UDim2.new(0.05, 0, 0.20, 0), Color3.fromRGB(80, 10, 10)) 
+local espBtn = createBtn("全景 ESP：ON", UDim2.new(0.05, 0, 0.29, 0), Color3.fromRGB(30, 60, 40))   
+local healBtn = createBtn("醫療：OFF", UDim2.new(0.05, 0, 0.38, 0), Color3.fromRGB(120, 0, 0))
+local fogBtn = createBtn("移除霧氣：OFF", UDim2.new(0.05, 0, 0.47, 0), Color3.fromRGB(50, 50, 50))
+local refreshBtn = createBtn("⚡ 手動刷新腳本", UDim2.new(0.05, 0, 0.56, 0), Color3.fromRGB(160, 110, 20)) -- 新增刷新按鈕
 
 -- 範圍設定輸入區
 local rangeLabel = Instance.new("TextLabel", contentFrame)
-rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.70, 0); rangeLabel.Text = "作戰範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
+rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.68, 0); rangeLabel.Text = "作戰範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.70, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = tostring(harvestRange); rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
+local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.68, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = tostring(harvestRange); rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
 
 -- 底部狀態
-local statusLabel = Instance.new("TextLabel", contentFrame); statusLabel.Size = UDim2.new(1, 0, 0, 30); statusLabel.Position = UDim2.new(0, 0, 0.81, 0); statusLabel.Text = "範圍融合版本已就緒"; statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7); statusLabel.BackgroundTransparency = 1
+local statusLabel = Instance.new("TextLabel", contentFrame); statusLabel.Size = UDim2.new(1, 0, 0, 30); statusLabel.Position = UDim2.new(0, 0, 0.78, 0); statusLabel.Text = "防卡死刷新版已就緒"; statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7); statusLabel.BackgroundTransparency = 1
 
 -- --- 3. 核心功能處理函數 ---
 
@@ -219,7 +220,7 @@ task.spawn(function()
         local anims = workspace:FindFirstChild("Living") and workspace.Living:FindFirstChild("Animals")
         
         if hrp then
-            -- 動物自動砍殺 (使用融合後的 harvestRange)
+            -- 動物自動砍殺
             if autoKnife and anims then
                 local knife = char:FindFirstChild("HuntingKnife") or lp.Backpack:FindFirstChild("HuntingKnife")
                 local kRemote = knife and knife:FindFirstChild("Scripts") and knife.Scripts.System:FindFirstChild("Hit")
@@ -237,7 +238,7 @@ task.spawn(function()
                 end
             end
             
-            -- 動物自動槍擊 (使用融合後的 harvestRange)
+            -- 動物自動槍擊
             if autoGun and anims and normalBullet then
                 local gun = char:FindFirstChild("M82") or char:FindFirstChild("CrocodileHunter")
                 local gRemote = gun and gun:FindFirstChild("Scripts") and gun.Scripts.System:FindFirstChild("Hit")
@@ -262,12 +263,11 @@ task.spawn(function()
                 end
             end
 
-            -- 玩家殺戮 (限定 M82 武器 且 使用融合後的 harvestRange)
+            -- 玩家殺戮 (限定 M82 武器)
             if killActive and normalBullet then
-                local weapon = char:FindFirstChild("M82") -- 嚴格鎖定必須裝備 M82
+                local weapon = char:FindFirstChild("M82")
                 local hitRemote = weapon and weapon:FindFirstChild("Scripts") and weapon.Scripts:FindFirstChild("System") and weapon.Scripts.System:FindFirstChild("Hit")
                 
-                -- 如果找不到標準路徑，再嘗試動態搜索 M82 內部的 RemoteEvent
                 if weapon and not hitRemote then
                     for _, v in pairs(weapon:GetDescendants()) do
                         if v.Name == "Hit" and v:IsA("RemoteEvent") then hitRemote = v; break end
@@ -281,7 +281,6 @@ task.spawn(function()
                             local targetHum = p.Character:FindFirstChild("Humanoid")
                             local dist = (targetHrp.Position - hrp.Position).Magnitude
                             
-                            -- 使用融合後的 harvestRange 進行判斷
                             if targetHum and targetHum.Health > 0 and dist <= harvestRange then
                                 hitRemote:FireServer({
                                     DistanceMade = Vector3.zero,
@@ -365,6 +364,37 @@ fogBtn.MouseButton1Click:Connect(function()
         local oldAtm = rs:FindFirstChildOfClass("Atmosphere")
         if oldAtm then oldAtm.Parent = Lighting end
     end
+end)
+
+-- 手動刷新按鈕點擊事件 (修復卡死與強制清理)
+refreshBtn.MouseButton1Click:Connect(function()
+    statusLabel.Text = "正在手動刷新..."
+    statusLabel.TextColor3 = Color3.new(1, 0.8, 0)
+    
+    -- 1. 強制清除所有動物 ESP 的渲染物件與快取
+    for obj, e in pairs(animalEspObjects) do
+        if e.Gui then pcall(function() e.Gui:Destroy() end) end
+    end
+    table.clear(animalEspObjects)
+    
+    -- 2. 強制清除所有玩家 ESP 的渲染物件與快取
+    for obj, e in pairs(playerEspObjects) do
+        if e.Gui then pcall(function() e.Gui:Destroy() end) end
+    end
+    table.clear(playerEspObjects)
+    
+    -- 3. 解除可能因非同步造成的卡死鎖定 (例如醫療程序)
+    isProcessing = false
+    lastRefresh = 0 -- 迫使下一次循環立即重新掃描玩家
+    
+    task.wait(0.2)
+    statusLabel.Text = "刷新完成，功能已重置"; statusLabel.TextColor3 = Color3.new(0.2, 1, 0.2)
+    task.delay(1.5, function()
+        if uiActive then
+            statusLabel.Text = "防卡死刷新版已就緒"
+            statusLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+        end
+    end)
 end)
 
 rangeInput.FocusLost:Connect(function() 
