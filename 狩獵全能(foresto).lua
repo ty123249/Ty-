@@ -67,7 +67,7 @@ mainFrame.ClipsDescendants = true
 Instance.new("UICorner", mainFrame)
 
 local titleLabel = Instance.new("TextLabel", mainFrame)
-titleLabel.Size = UDim2.new(1, 0, 0, 35); titleLabel.Text = "狩獵全能 (動態重載版)"; titleLabel.TextColor3 = Color3.fromRGB(255, 200, 50); titleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35); titleLabel.Font = Enum.Font.SourceSansBold; titleLabel.TextSize = 16
+titleLabel.Size = UDim2.new(1, 0, 0, 35); titleLabel.Text = "狩獵全能"; titleLabel.TextColor3 = Color3.fromRGB(255, 200, 50); titleLabel.BackgroundColor3 = Color3.fromRGB(25, 25, 35); titleLabel.Font = Enum.Font.SourceSansBold; titleLabel.TextSize = 16
 
 local dragging, dragStart, startPos
 mainFrame.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = mainFrame.Position end end)
@@ -123,7 +123,7 @@ local healBtn = createBtn("醫療", UDim2.new(0.05, 0, 0.37, 0), Color3.new())
 local fogBtn = createBtn("移除霧氣", UDim2.new(0.05, 0, 0.46, 0), Color3.new())
 
 -- 【設定：重新讀取 GitHub 最新代碼的按鈕】
-local rebootBtn = createBtn("⚡ 雲端重載腳本 (0.5s)", UDim2.new(0.05, 0, 0.55, 0), Color3.fromRGB(35, 105, 190))
+local rebootBtn = createBtn("重載腳本", UDim2.new(0.05, 0, 0.55, 0), Color3.fromRGB(35, 105, 190))
 
 local rangeLabel = Instance.new("TextLabel", contentFrame); rangeLabel.Size = UDim2.new(0.4, 0, 0, 25); rangeLabel.Position = UDim2.new(0.05, 0, 0.66, 0); rangeLabel.Text = "作戰範圍:"; rangeLabel.TextColor3 = Color3.new(1, 1, 1); rangeLabel.BackgroundTransparency = 1; rangeLabel.TextXAlignment = Enum.TextXAlignment.Left
 local rangeInput = Instance.new("TextBox", contentFrame); rangeInput.Size = UDim2.new(0.45, 0, 0, 25); rangeInput.Position = UDim2.new(0.5, 0, 0.66, 0); rangeInput.BackgroundColor3 = Color3.fromRGB(40, 40, 45); rangeInput.Text = tostring(harvestRange); rangeInput.TextColor3 = Color3.new(0, 1, 1); Instance.new("UICorner", rangeInput)
