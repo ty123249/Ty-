@@ -33,14 +33,14 @@ local MAX_TARGET_COORDINATE = 50000
 --[[
 	OPTIONAL SERVER HISTORY LOGGER
 
-	Keep the logger as a separate GitHub file. After you publish
-	ServerHistoryLogger.lua, paste its real raw URL below. Leaving this as nil
+	Keep the logger as a separate GitHub file.  After you publish
+	ServerHistoryLogger.lua, paste its real raw URL below.  Leaving this as nil
 	keeps Infinity Control fully standalone.
 
 	The logger is intentionally not stopped when this UI closes; it owns its own
 	ServerLogs/ session and must be stopped explicitly with Logger.Stop().
 ]]
-local SERVER_HISTORY_LOGGER_URL = "https://raw.githubusercontent.com/ty123249/Ty-/refs/heads/module/ServerHistoryLogger.lua"
+local SERVER_HISTORY_LOGGER_URL = nil
 
 local function tryStartServerHistoryLogger()
 	if type(SERVER_HISTORY_LOGGER_URL) ~= "string"
@@ -885,6 +885,7 @@ local function disconnectPlayer(player)
 	if connections then
 		disconnectList(connections.base)
 		disconnectList(connections.character)
+		disconnectList(connections.backpack)
 
 		if connections.humanoid then
 			connections.humanoid:Disconnect()
@@ -974,10 +975,13 @@ local function connectPlayer(player)
 	local connections = {
 		base = {},
 		character = {},
+		backpack = {},
 		humanoid = nil
 	}
 
 	playerConnections[player] = connections
+
+	updatePlayerCard(player, UPDATE_ALL)
 
 	table.insert(connections.base, player.CharacterAdded:Connect(function(character)
 		bindCharacter(player, character)
@@ -1002,20 +1006,45 @@ local function connectPlayer(player)
 		queuePlayerUpdate(player, UPDATE_INFO)
 	end))
 
+	local function bindBackpack(backpack)
+		disconnectList(connections.backpack)
+
+		if not backpack then
+			return
+		end
+
+		table.insert(connections.backpack, backpack.ChildAdded:Connect(function(child)
+			if child:IsA("Tool") then
+				queuePlayerUpdate(player, UPDATE_SKILLS)
+			end
+		end))
+
+		table.insert(connections.backpack, backpack.ChildRemoved:Connect(function(child)
+			if child:IsA("Tool") then
+				queuePlayerUpdate(player, UPDATE_SKILLS)
+			end
+		end))
+
+		queuePlayerUpdate(player, UPDATE_SKILLS)
+	end
+
+	table.insert(connections.base, player.ChildAdded:Connect(function(child)
+		if child:IsA("Backpack") then
+			bindBackpack(child)
+		end
+	end))
+
+	table.insert(connections.base, player.ChildRemoved:Connect(function(child)
+		if child:IsA("Backpack") then
+			disconnectList(connections.backpack)
+			queuePlayerUpdate(player, UPDATE_SKILLS)
+		end
+	end))
+
 	local backpack = player:FindFirstChildOfClass("Backpack")
 
 	if backpack then
-		table.insert(connections.base, backpack.ChildAdded:Connect(function(child)
-			if child:IsA("Tool") then
-				queuePlayerUpdate(player, UPDATE_SKILLS)
-			end
-		end))
-
-		table.insert(connections.base, backpack.ChildRemoved:Connect(function(child)
-			if child:IsA("Tool") then
-				queuePlayerUpdate(player, UPDATE_SKILLS)
-			end
-		end))
+		bindBackpack(backpack)
 	end
 
 	local character = player.Character
@@ -1025,6 +1054,8 @@ local function connectPlayer(player)
 	else
 		queuePlayerUpdate(player, UPDATE_ALL)
 	end
+
+	refreshPlayerOrder()
 end
 
 --// =========================================================
@@ -1398,10 +1429,8 @@ table.sort(existingPlayers, function(a, b)
 	return a.Name:lower() < b.Name:lower()
 end)
 
-for index, player in ipairs(existingPlayers) do
-	if index <= MAX_PLAYERS then
-		connectPlayer(player)
-	end
+for _, player in ipairs(existingPlayers) do
+	connectPlayer(player)
 end
 
 refreshPlayerOrder()
@@ -1411,12 +1440,8 @@ table.insert(guiConnections, Players.PlayerAdded:Connect(function(player)
 		return
 	end
 
-	-- Server is normally capped at 15 players,
-	-- so excluding LocalPlayer leaves MAX_PLAYERS slots.
-	if #Players:GetPlayers() - 1 <= MAX_PLAYERS then
-		connectPlayer(player)
-		refreshPlayerOrder()
-	end
+	connectPlayer(player)
+	refreshPlayerOrder()
 end))
 
 table.insert(guiConnections, Players.PlayerRemoving:Connect(function(player)
@@ -1424,11 +1449,11 @@ table.insert(guiConnections, Players.PlayerRemoving:Connect(function(player)
 
 	if selectedPlayer == player then
 		selectedPlayer = nil
-		updateSelectedVisual()
 	end
 
 	disconnectPlayer(player)
 	refreshPlayerOrder()
+	updateSelectedVisual()
 end))
 
 --// =========================================================
