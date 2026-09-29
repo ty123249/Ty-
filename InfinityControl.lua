@@ -179,6 +179,12 @@ local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseCorner.Parent = CloseButton
 
+CloseButton.MouseButton1Click:Connect(function()
+	if ScreenGui and ScreenGui.Parent then
+		ScreenGui:Destroy()
+	end
+end)
+
 --// =========================================================
 --// DRAG
 --// =========================================================
@@ -543,8 +549,12 @@ local function renderSkills(player, tools)
 		return
 	end
 
-	local skillScroll = card.SkillScroll
+	local skillScroll = card:FindFirstChild("SkillScroll")
 	local labels = cache.skillLabels
+
+	if not skillScroll then
+		return
+	end
 
 	for index, toolName in ipairs(tools) do
 		local label = labels[index]
@@ -616,17 +626,20 @@ local function updatePlayerCard(player, flags)
 
 		if cache.displayName ~= displayName then
 			cache.displayName = displayName
-			card.DisplayName.Text = displayName
+			local label = card:FindFirstChild("DisplayName")
+			if label then label.Text = displayName end
 		end
 
 		if cache.username ~= username then
 			cache.username = username
-			card.Username.Text = username
+			local label = card:FindFirstChild("Username")
+			if label then label.Text = username end
 		end
 
 		if cache.customName ~= customName then
 			cache.customName = customName
-			card.CustomName.Text = "Custom: " .. customName
+			local label = card:FindFirstChild("CustomName")
+			if label then label.Text = "Custom: " .. customName end
 		end
 	end
 
@@ -643,7 +656,8 @@ local function updatePlayerCard(player, flags)
 
 		if cache.hpText ~= hpText then
 			cache.hpText = hpText
-			card.HP.Text = hpText
+			local label = card:FindFirstChild("HP")
+			if label then label.Text = hpText end
 		end
 	end
 
@@ -715,13 +729,19 @@ local function updateSelectedVisual()
 		if selected then
 			card.BackgroundColor3 = Color3.fromRGB(45, 80, 130)
 			card.BackgroundTransparency = 0.05
-			card.Stroke.Color = Color3.fromRGB(100, 170, 255)
-			card.Stroke.Transparency = 0
+			local stroke = card:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				stroke.Color = Color3.fromRGB(100, 170, 255)
+				stroke.Transparency = 0
+			end
 		else
 			card.BackgroundColor3 = Color3.fromRGB(32, 32, 38)
 			card.BackgroundTransparency = 0.15
-			card.Stroke.Color = Color3.fromRGB(70, 70, 78)
-			card.Stroke.Transparency = 0.45
+			local stroke = card:FindFirstChildOfClass("UIStroke")
+			if stroke then
+				stroke.Color = Color3.fromRGB(70, 70, 78)
+				stroke.Transparency = 0.45
+			end
 		end
 	end
 
@@ -762,7 +782,6 @@ local function createPlayerCard(player)
 	stroke.Transparency = 0.45
 	stroke.Parent = card
 
-	card.Stroke = stroke
 
 	local DisplayName = Instance.new("TextLabel")
 	DisplayName.Name = "DisplayName"
@@ -833,19 +852,23 @@ local function createPlayerCard(player)
 	SkillScroll.ScrollingDirection = Enum.ScrollingDirection.Y
 	SkillScroll.Parent = card
 
-	card.DisplayName = DisplayName
-	card.Username = Username
-	card.CustomName = CustomName
-	card.HP = HP
-	card.SkillScroll = SkillScroll
 
-	card.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
+	local function bindSelectInput(guiObject)
+		guiObject.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch then
+				selectPlayer(player)
+			end
+		end)
+	end
 
-			selectPlayer(player)
-		end
-	end)
+	bindSelectInput(card)
+	bindSelectInput(DisplayName)
+	bindSelectInput(Username)
+	bindSelectInput(CustomName)
+	bindSelectInput(HP)
+	bindSelectInput(SkillTitle)
+	bindSelectInput(SkillScroll)
 
 	playerCards[player] = card
 
@@ -962,11 +985,7 @@ local function bindCharacter(player, character)
 end
 
 local function connectPlayer(player)
-	if player == LocalPlayer then
-		return
-	end
-
-	if playerCards[player] then
+	if player == LocalPlayer or playerCards[player] then
 		return
 	end
 
@@ -981,37 +1000,12 @@ local function connectPlayer(player)
 
 	playerConnections[player] = connections
 
-	updatePlayerCard(player, UPDATE_ALL)
-
-	table.insert(connections.base, player.CharacterAdded:Connect(function(character)
-		bindCharacter(player, character)
-	end))
-
-	table.insert(connections.base, player.CharacterRemoving:Connect(function()
-		if connections.humanoid then
-			connections.humanoid:Disconnect()
-			connections.humanoid = nil
-		end
-
-		disconnectList(connections.character)
-
-		queuePlayerUpdate(player, UPDATE_ALL)
-	end))
-
-	table.insert(connections.base, player:GetPropertyChangedSignal("DisplayName"):Connect(function()
-		queuePlayerUpdate(player, UPDATE_INFO)
-	end))
-
-	table.insert(connections.base, player:GetAttributeChangedSignal("CustomCharacterName"):Connect(function()
-		queuePlayerUpdate(player, UPDATE_INFO)
-	end))
-
 	local function bindBackpack(backpack)
-		disconnectList(connections.backpack)
-
 		if not backpack then
 			return
 		end
+
+		disconnectList(connections.backpack)
 
 		table.insert(connections.backpack, backpack.ChildAdded:Connect(function(child)
 			if child:IsA("Tool") then
@@ -1028,6 +1022,27 @@ local function connectPlayer(player)
 		queuePlayerUpdate(player, UPDATE_SKILLS)
 	end
 
+	table.insert(connections.base, player.CharacterAdded:Connect(function(character)
+		bindCharacter(player, character)
+	end))
+
+	table.insert(connections.base, player.CharacterRemoving:Connect(function()
+		if connections.humanoid then
+			connections.humanoid:Disconnect()
+			connections.humanoid = nil
+		end
+		disconnectList(connections.character)
+		queuePlayerUpdate(player, UPDATE_ALL)
+	end))
+
+	table.insert(connections.base, player:GetPropertyChangedSignal("DisplayName"):Connect(function()
+		queuePlayerUpdate(player, UPDATE_INFO)
+	end))
+
+	table.insert(connections.base, player:GetAttributeChangedSignal("CustomCharacterName"):Connect(function()
+		queuePlayerUpdate(player, UPDATE_INFO)
+	end))
+
 	table.insert(connections.base, player.ChildAdded:Connect(function(child)
 		if child:IsA("Backpack") then
 			bindBackpack(child)
@@ -1042,20 +1057,17 @@ local function connectPlayer(player)
 	end))
 
 	local backpack = player:FindFirstChildOfClass("Backpack")
-
 	if backpack then
 		bindBackpack(backpack)
 	end
 
-	local character = player.Character
-
-	if character then
-		bindCharacter(player, character)
+	if player.Character then
+		bindCharacter(player, player.Character)
 	else
 		queuePlayerUpdate(player, UPDATE_ALL)
 	end
 
-	refreshPlayerOrder()
+	queuePlayerUpdate(player, UPDATE_ALL)
 end
 
 --// =========================================================
@@ -1425,10 +1437,6 @@ for _, player in ipairs(Players:GetPlayers()) do
 	end
 end
 
-table.sort(existingPlayers, function(a, b)
-	return a.Name:lower() < b.Name:lower()
-end)
-
 for _, player in ipairs(existingPlayers) do
 	connectPlayer(player)
 end
@@ -1526,12 +1534,6 @@ end
 -- Destroying also runs when a newly executed copy removes the older GUI.
 -- That prevents the old control script from leaving live event connections.
 ScreenGui.Destroying:Connect(cleanup)
-
-CloseButton.MouseButton1Click:Connect(function()
-	if ScreenGui and ScreenGui.Parent then
-		ScreenGui:Destroy()
-	end
-end)
 
 --// =========================================================
 --// INITIAL
