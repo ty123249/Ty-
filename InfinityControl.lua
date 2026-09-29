@@ -40,7 +40,7 @@ local MAX_TARGET_COORDINATE = 50000
 	The logger is intentionally not stopped when this UI closes; it owns its own
 	ServerLogs/ session and must be stopped explicitly with Logger.Stop().
 ]]
-local SERVER_HISTORY_LOGGER_URL = nil
+local SERVER_HISTORY_LOGGER_URL = "https://raw.githubusercontent.com/ty123249/Ty-/refs/heads/module/ServerHistoryLogger.lua"
 
 local function tryStartServerHistoryLogger()
 	if type(SERVER_HISTORY_LOGGER_URL) ~= "string"
@@ -494,8 +494,8 @@ end
 local function getCustomCharacterName(player)
 	local value = player:GetAttribute("CustomCharacterName")
 
-	if value == nil then
-		return "None"
+	if value == nil or tostring(value) == "" or tostring(value):lower() == "none" then
+		return "----"
 	end
 
 	return tostring(value)
@@ -562,7 +562,7 @@ local function renderSkills(player, tools)
 		if not label then
 			label = Instance.new("TextLabel")
 
-			label.Size = UDim2.new(1, -6, 0, 18)
+			label.Size = UDim2.new(1, -6, 0, 16)
 			label.BackgroundTransparency = 1
 
 			label.Font = Enum.Font.Gotham
@@ -578,6 +578,7 @@ local function renderSkills(player, tools)
 			labels[index] = label
 		end
 
+		label.LayoutOrder = index
 		label.Text = "• " .. toolName
 		label.Visible = true
 	end
@@ -586,10 +587,7 @@ local function renderSkills(player, tools)
 		labels[index].Visible = false
 	end
 
-	skillScroll.CanvasSize = UDim2.fromOffset(
-		0,
-		math.max(#tools * 18, skillScroll.AbsoluteSize.Y)
-	)
+	-- UIListLayout handles skill spacing and canvas size.
 end
 
 local function updatePlayerCard(player, flags)
@@ -639,7 +637,7 @@ local function updatePlayerCard(player, flags)
 		if cache.customName ~= customName then
 			cache.customName = customName
 			local label = card:FindFirstChild("CustomName")
-			if label then label.Text = "Custom: " .. customName end
+			if label then label.Text = customName end
 		end
 	end
 
@@ -852,6 +850,16 @@ local function createPlayerCard(player)
 	SkillScroll.ScrollingDirection = Enum.ScrollingDirection.Y
 	SkillScroll.Parent = card
 
+	local SkillLayout = Instance.new("UIListLayout")
+	SkillLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	SkillLayout.Padding = UDim.new(0, 2)
+	SkillLayout.Parent = SkillScroll
+
+	local function updateSkillCanvas()
+		SkillScroll.CanvasSize = UDim2.fromOffset(0, SkillLayout.AbsoluteContentSize.Y + 2)
+	end
+
+	SkillLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateSkillCanvas)
 
 	local function bindSelectInput(guiObject)
 		guiObject.InputBegan:Connect(function(input)
