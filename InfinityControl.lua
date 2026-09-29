@@ -33,14 +33,14 @@ local MAX_TARGET_COORDINATE = 50000
 --[[
 	OPTIONAL SERVER HISTORY LOGGER
 
-	Keep the logger as a separate GitHub file.  After you publish
-	ServerHistoryLogger.lua, paste its real raw URL below.  Leaving this as nil
+	Keep the logger as a separate GitHub file. After you publish
+	ServerHistoryLogger.lua, paste its real raw URL below. Leaving this as nil
 	keeps Infinity Control fully standalone.
 
 	The logger is intentionally not stopped when this UI closes; it owns its own
 	ServerLogs/ session and must be stopped explicitly with Logger.Stop().
 ]]
-local SERVER_HISTORY_LOGGER_URL = https://raw.githubusercontent.com/ty123249/Ty-/refs/heads/module/ServerHistoryLogger.lua
+local SERVER_HISTORY_LOGGER_URL = "https://raw.githubusercontent.com/ty123249/Ty-/refs/heads/module/ServerHistoryLogger.lua"
 
 local function tryStartServerHistoryLogger()
 	if type(SERVER_HISTORY_LOGGER_URL) ~= "string"
